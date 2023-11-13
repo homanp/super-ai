@@ -1,6 +1,6 @@
-# AI Financial Analyst
+# SuperAI - AI Financial Analyst
 
-**is a web application that provides a dynamic and interactive way to visualize data using Large Language Models (LLMs) and Chart.js. This application allows users to chat with structured/unstructured data and visualize the answers with dynamically rendered charts.**
+**SuperAI is a web application that provides a dynamic and interactive way to visualize data using Large Language Models (LLMs) and Chart.js. This application allows users to chat with structured/unstructured data and visualize the answers with dynamically rendered charts.**
 
 https://github.com/homanp/ai-financial-analyst/assets/2464556/50186cd0-b163-40a4-a033-3444b258feac
 
