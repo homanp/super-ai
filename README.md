@@ -1,4 +1,4 @@
-# SuperAI - AI Financial Analyst
+# ⚡ SuperAI - AI Financial Analyst
 
 **SuperAI is a web application that provides a dynamic and interactive way to visualize data using Large Language Models (LLMs) and Chart.js. This application allows users to chat with structured/unstructured data and visualize the answers with dynamically rendered charts.**
 
