@@ -1,113 +1,170 @@
-import Image from 'next/image'
+"use client";
+import React from "react";
+import { v4 as uuidv4 } from "uuid";
+import { fetchEventSource } from "@microsoft/fetch-event-source";
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, Title } from "chart.js";
+import { Doughnut } from "react-chartjs-2";
+
+import PromptForm from "@/components/prompt-form";
+import ChatMessage from "@/components/chat-message";
+
+ChartJS.register(ArcElement, Tooltip, Legend, Title);
+
+// Change this to your own hosted Superagent instance
+const API_URL = "https://api.beta.superagent.sh/api";
+
+// Change this to your Superagent Agent ID
+const CHAT_AGENT_ID = "e9409d15-a371-4fa7-913b-5ca114aae0e2";
+const STRUCTERED_PREDICTION_AGENT_ID = "c39f0a9c-6e99-47a1-a5d3-0f5604fbf720";
+
+const HEADERS = {
+  "Content-Type": "application/json",
+  authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPERAGENT_API_KEY}`,
+};
+
+const chartOptions = {
+  plugins: {
+    legend: {
+      labels: {
+        color: "white", // Legend labels
+      },
+    },
+  },
+};
+
+const chartData = {
+  labels: [],
+  datasets: [
+    {
+      label: "",
+      data: [],
+      backgroundColor: [
+        "rgba(255, 99, 132, 0.2)",
+        "rgba(54, 162, 235, 0.2)",
+        "rgba(255, 206, 86, 0.2)",
+        "rgba(75, 192, 192, 0.2)",
+        "rgba(153, 102, 255, 0.2)",
+        "rgba(255, 159, 64, 0.2)",
+      ],
+      borderColor: [
+        "rgba(255, 99, 132, 1)",
+        "rgba(54, 162, 235, 1)",
+        "rgba(255, 206, 86, 1)",
+        "rgba(75, 192, 192, 1)",
+        "rgba(153, 102, 255, 1)",
+        "rgba(255, 159, 64, 1)",
+      ],
+      borderWidth: 1,
+    },
+  ],
+};
 
 export default function Home() {
+  const [messages, setMessages] = React.useState<
+    { type: string; message: string }[]
+  >([{ type: "ai", message: "Hello there, how can I help you?" }]);
+  const [data, setData] = React.useState<any>(chartData);
+  const [chartRessponse, setChartResponseData] = React.useState<any>(null);
+
+  async function onSubmit(value: string) {
+    let message = "";
+
+    setMessages((previousMessages: any) => [
+      ...previousMessages,
+      { type: "human", message: value },
+    ]);
+
+    setMessages((previousMessages) => [
+      ...previousMessages,
+      { type: "ai", message },
+    ]);
+
+    await fetchEventSource(`${API_URL}/agents/${CHAT_AGENT_ID}/invoke`, {
+      method: "POST",
+      headers: HEADERS,
+      body: JSON.stringify({
+        input: value,
+        enableStreaming: true,
+        sessionId: uuidv4(),
+      }),
+      openWhenHidden: true,
+      async onclose() {
+        const chartResponse = await fetch(
+          `${API_URL}/agents/${STRUCTERED_PREDICTION_AGENT_ID}/invoke`,
+          {
+            method: "POST",
+            headers: HEADERS,
+            body: JSON.stringify({
+              input: message,
+              enableStreaming: false,
+              outputSchema:
+                "{labels: List[str], values: List[str or int], cart_label: str}",
+              sessionId: uuidv4(),
+            }),
+          }
+        );
+        const { data: chartResponseData } = await chartResponse.json();
+
+        setChartResponseData(chartResponseData);
+        setData({
+          ...data,
+          labels: chartResponseData?.labels || [],
+          datasets: [
+            {
+              ...data.datasets[0],
+              data: chartResponseData?.values || [],
+            },
+          ],
+        });
+      },
+      async onmessage(event) {
+        if (event.data !== "[END]") {
+          message += event.data === "" ? `${event.data} \n` : event.data;
+          setMessages((previousMessages) => {
+            let updatedMessages = [...previousMessages];
+
+            for (let i = updatedMessages.length - 1; i >= 0; i--) {
+              if (updatedMessages[i].type === "ai") {
+                updatedMessages[i].message = message;
+                break;
+              }
+            }
+
+            return updatedMessages;
+          });
+        }
+      },
+    });
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
+    <main className="flex bg-gray-800 min-h-screen">
+      <section className="flex flex-col w-1/2 bg-gray-700">
+        <p className="text-md text-slate-200 text-center mt-10">
+          {chartRessponse?.chart_label}
         </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+        <div className="flex flex-1 px-20 py-20 items-center">
+          <Doughnut data={data} options={chartOptions} />
         </div>
-      </div>
-
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
+      </section>
+      <section className="flex flex-col flex-1 border-l border-gray-600 relative pt-10">
+        <div className="chat-container flex-col flex-1 px-6 py-4 flex space-y-8 max-h-full mb-40">
+          {messages.map(({ type, message }, index) => (
+            <ChatMessage
+              key={`${type}-${index}`}
+              type={type}
+              message={message}
+            />
+          ))}
+        </div>
+        <footer className="fixed bottom-0 right-0 left-[51%] bg-gray-800">
+          <PromptForm
+            onSubmit={async (value) => {
+              onSubmit(value);
+            }}
+          />
+        </footer>
+      </section>
     </main>
-  )
+  );
 }
