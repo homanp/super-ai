@@ -11,7 +11,7 @@ import ChatMessage from "@/components/chat-message";
 ChartJS.register(ArcElement, Tooltip, Legend, Title);
 
 // Change this to your own hosted Superagent instance
-const API_URL = "https://api.beta.superagent.sh/api";
+const API_URL = "https://api.beta.superagent.sh/api/v1";
 
 // Change this to your Superagent Agent ID
 const CHAT_AGENT_ID = "e9409d15-a371-4fa7-913b-5ca114aae0e2";
@@ -64,7 +64,7 @@ export default function Home() {
     { type: string; message: string }[]
   >([{ type: "ai", message: "Hello there, how can I help you?" }]);
   const [data, setData] = React.useState<any>(chartData);
-  const [chartRessponse, setChartResponseData] = React.useState<any>(null);
+  const [chartResponse, setChartResponseData] = React.useState<any>(null);
 
   async function onSubmit(value: string) {
     let message = "";
@@ -85,7 +85,7 @@ export default function Home() {
       body: JSON.stringify({
         input: value,
         enableStreaming: true,
-        sessionId: uuidv4(),
+        //sessionId: uuidv4(),
       }),
       openWhenHidden: true,
       async onclose() {
@@ -99,7 +99,7 @@ export default function Home() {
               enableStreaming: false,
               outputSchema:
                 "{labels: List[str], values: List[str or int], cart_label: str}",
-              sessionId: uuidv4(),
+              //sessionId: uuidv4(),
             }),
           }
         );
@@ -140,12 +140,16 @@ export default function Home() {
   return (
     <main className="flex bg-gray-800 min-h-screen">
       <section className="flex flex-col w-1/2 bg-gray-700">
-        <p className="text-md text-slate-200 text-center mt-10">
-          {chartRessponse?.chart_label}
-        </p>
-        <div className="flex flex-1 px-20 py-20 items-center">
-          <Doughnut data={data} options={chartOptions} />
-        </div>
+        {chartResponse?.values?.length > 0 && (
+          <>
+            <p className="text-md text-slate-200 text-center mt-10">
+              {chartResponse?.chart_label}
+            </p>
+            <div className="flex flex-1 px-20 py-20 items-center">
+              <Doughnut data={data} options={chartOptions} />
+            </div>
+          </>
+        )}
       </section>
       <section className="flex flex-col flex-1 border-l border-gray-600 relative pt-10">
         <div className="chat-container flex-col flex-1 px-6 py-4 flex space-y-8 max-h-full mb-40">
