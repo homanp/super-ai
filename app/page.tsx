@@ -1,6 +1,6 @@
 "use client";
+
 import React from "react";
-import { v4 as uuidv4 } from "uuid";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, Title } from "chart.js";
 import { Doughnut } from "react-chartjs-2";
@@ -85,7 +85,7 @@ export default function Home() {
       body: JSON.stringify({
         input: value,
         enableStreaming: true,
-        //sessionId: uuidv4(),
+        sessionId: "test",
       }),
       openWhenHidden: true,
       async onclose() {
@@ -99,7 +99,7 @@ export default function Home() {
               enableStreaming: false,
               outputSchema:
                 "{labels: List[str], values: List[str or int], cart_label: str}",
-              //sessionId: uuidv4(),
+              sessionId: "test",
             }),
           }
         );
